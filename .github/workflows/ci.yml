@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  ci:
+    name: Type check, lint & build
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: saloonify
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:password@localhost:5432/saloonify
+      JWT_SECRET: ci_jwt_secret
+      JWT_REFRESH_SECRET: ci_jwt_refresh_secret
+      REDIS_URL: redis://localhost:6379
+      NODE_ENV: test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npm run db:generate
+        working-directory: .
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+
+      - name: Type check — api-gateway
+        run: npx tsc --noEmit
+        working-directory: packages/api-gateway
+
+      - name: Type check — client
+        run: npx tsc --noEmit
+        working-directory: packages/client
+
+      - name: Type check — service-user
+        run: npx tsc --noEmit
+        working-directory: Services/service-user
+
+      - name: Type check — service-salon
+        run: npx tsc --noEmit
+        working-directory: Services/service-salon
+
+      - name: Type check — service-booking
+        run: npx tsc --noEmit
+        working-directory: Services/service-booking
+
+      - name: Type check — service-review
+        run: npx tsc --noEmit
+        working-directory: Services/service-review
+
+      - name: Lint — client
+        run: npm run lint
+        working-directory: packages/client
+
+      - name: Build all packages
+        run: npm run build
