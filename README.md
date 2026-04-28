@@ -4,6 +4,82 @@ Plateforme de réservation de salons de coiffure. Les clients trouvent et réser
 
 ---
 
+## Fonctionnalités implémentées
+
+### Authentification
+- Inscription avec choix de rôle (CLIENT / COIFFEUR)
+- Connexion JWT — access token 15 min + refresh token httpOnly 7 jours
+- Rafraîchissement et révocation du token
+- Rate limiting sur les routes auth
+
+### Gestion des utilisateurs
+- Création de compte avec hachage bcrypt du mot de passe
+- Modification du profil (nom, prénom, avatar)
+- Tableau de bord pro : RDV du jour / semaine, note moyenne, total clients, total avis, revenus du mois
+
+### Salons
+- Création d'une boutique (1 par coiffeur) avec horaires par défaut générés automatiquement
+- Modification et suppression du salon
+- Gestion des horaires par jour de la semaine (ouvert/fermé, heure de début/fin)
+- CRUD des prestations (avec blocage si réservations actives en cours)
+- Recherche avec filtres combinés : catégorie, prix max, note min
+- Filtrage géographique par rayon (calcul Haversine) + tri par distance
+- Pagination des résultats
+
+### Réservations
+- Tunnel de réservation : choix de la prestation → créneau → confirmation
+- Génération des créneaux disponibles par tranche de 30 min selon les horaires du salon
+- Vérification des conflits de créneaux à la création
+- Cycle de vie complet : EN_ATTENTE → CONFIRME → TERMINE / ANNULE
+- Historique client (à venir / passées / annulées)
+- Vue pro des réservations avec filtre par date
+
+### Avis
+- Dépôt d'un avis (note 1–5 + commentaire) avec vérification de doublon par salon
+- Recalcul automatique de la note moyenne du salon à chaque avis
+- Liste des avis paginée avec note moyenne
+
+### Upload & géolocalisation
+- Upload de photos (max 10 fichiers, 5 Mo chacun, images uniquement)
+- Recherche d'adresse et géocodage inverse via Nominatim (OpenStreetMap)
+
+### Event Bus (Redis pub/sub)
+- `booking.created` — réservation créée
+- `booking.confirmed` — réservation confirmée
+- `booking.cancelled` — réservation annulée
+- `booking.terminated` — prestation terminée
+- `review.added` — avis déposé
+- `salon.updated` — boutique modifiée
+
+### Frontend
+- Page d'accueil avec salons mis en avant
+- Explore : carte Leaflet interactive + liste filtrables
+- Page salon : galerie photos, prestations, avis, horaires, carte
+- Espace pro complet : dashboard, boutique, prestations, agenda semaine, réservations, avis
+- Protection des routes par rôle (CLIENT, COIFFEUR, ADMIN)
+
+---
+
+## TODO
+
+- [ ] Service de notifications email (l'event bus publie les événements, aucun consommateur n'envoie encore d'emails)
+- [ ] Rappels de RDV par SMS / email
+- [ ] Paiement en ligne (Stripe)
+- [ ] Codes promo et programme de fidélité
+- [ ] Multi-salon par coiffeur (actuellement limité à 1)
+- [ ] Messagerie entre client et coiffeur
+- [ ] Favoris / salons sauvegardés
+- [ ] Recherche full-text des salons
+- [ ] Requêtes géographiques via PostGIS (remplacer le filtre Haversine en mémoire)
+- [ ] Cache Redis sur les lectures fréquentes
+- [ ] Notation des clients par les coiffeurs
+- [ ] Export de l'agenda en iCal
+- [ ] Mode sombre
+- [ ] PWA / application mobile
+- [ ] Support multi-langue
+
+---
+
 ## Architecture
 
 Monorepo **npm workspaces** — 6 packages, communication interne via gRPC et Redis.
