@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+package saloonify;
+
+service BookingService {
+  rpc CreateBooking (CreateBookingRequest) returns (BookingResponse);
+  rpc CancelBooking (BookingRequest) returns (BookingResponse);
+  rpc ConfirmBooking (BookingRequest) returns (BookingResponse);
+  rpc TerminateBooking (BookingRequest) returns (BookingResponse);
+  rpc GetAvailableSlots (SlotsRequest) returns (SlotsResponse);
+  rpc ListBookingsByClient (UserRequest) returns (ListBookingsResponse);
+  rpc ListBookingsByPro (ProBookingsRequest) returns (ListBookingsResponse);
+  rpc GetBooking (BookingRequest) returns (BookingResponse);
+}
+
+message BookingRequest {
+  string id = 1;
+}
+
+message UserRequest {
+  string user_id = 1;
+}
+
+message ProBookingsRequest {
+  string pro_id = 1;
+  string date = 2;
+}
+
+message SlotsRequest {
+  string salon_id = 1;
+  string prestation_id = 2;
+  string date = 3;
+}
+
+message CreateBookingRequest {
+  string client_id = 1;
+  string salon_id = 2;
+  string prestation_id = 3;
+  string date_heure = 4;
+}
+
+message BookingProto {
+  string id = 1;
+  string client_id = 2;
+  string client_nom = 3;
+  string client_prenom = 4;
+  string client_email = 5;
+  string salon_id = 6;
+  string salon_nom = 7;
+  string prestation_id = 8;
+  string prestation_nom = 9;
+  int32 prestation_duree = 10;
+  double prestation_prix = 11;
+  string coiffeur_id = 12;
+  string date_heure = 13;
+  string statut = 14;
+  string created_at = 15;
+}
+
+message TimeSlotProto {
+  string date_heure = 1;
+  bool disponible = 2;
+}
+
+message BookingResponse {
+  bool success = 1;
+  string error = 2;
+  BookingProto booking = 3;
+}
+
+message ListBookingsResponse {
+  bool success = 1;
+  string error = 2;
+  repeated BookingProto bookings = 3;
+}
+
+message SlotsResponse {
+  bool success = 1;
+  string error = 2;
+  repeated TimeSlotProto slots = 3;
+}

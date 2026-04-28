@@ -1,0 +1,22 @@
+{
+  "name": "saloonify",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "Services/*",
+    "prisma"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w packages/api-gateway\" \"npm run dev -w Services/service-user\" \"npm run dev -w Services/service-salon\" \"npm run dev -w Services/service-booking\" \"npm run dev -w Services/service-review\" \"npm run dev -w packages/client\"",
+    "build": "npm run build --workspaces --if-present",
+    "db:generate": "npm run generate -w prisma",
+    "db:migrate": "npm run migrate -w prisma",
+    "db:seed": "npm run seed -w prisma",
+    "db:studio": "npm run studio -w prisma"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.3.3"
+  }
+}

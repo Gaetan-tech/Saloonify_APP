@@ -1,0 +1,105 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CLIENT
+  COIFFEUR
+  ADMIN
+}
+
+enum BookingStatut {
+  EN_ATTENTE
+  CONFIRME
+  ANNULE
+  TERMINE
+}
+
+model User {
+  id        String    @id @default(uuid())
+  email     String    @unique
+  password  String
+  role      Role      @default(CLIENT)
+  nom       String
+  prenom    String
+  avatar    String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  bookings  Booking[]
+  reviews   Review[]
+  salon     Salon?
+}
+
+model Salon {
+  id          String       @id @default(uuid())
+  nom         String
+  description String
+  adresse     String
+  lat         Float
+  lng         Float
+  photos      String[]
+  note        Float        @default(0)
+  totalAvis   Int          @default(0)
+  coiffeurId  String       @unique
+  coiffeur    User         @relation(fields: [coiffeurId], references: [id], onDelete: Cascade)
+  prestations Prestation[]
+  horaires    Horaire[]
+  bookings    Booking[]
+  reviews     Review[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Prestation {
+  id          String    @id @default(uuid())
+  nom         String
+  description String?
+  duree       Int
+  prix        Float
+  categorie   String
+  salonId     String
+  salon       Salon     @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  bookings    Booking[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Horaire {
+  id         String   @id @default(uuid())
+  jour       String
+  ouvert     Boolean  @default(true)
+  heureDebut String?
+  heureFin   String?
+  salonId    String
+  salon      Salon    @relation(fields: [salonId], references: [id], onDelete: Cascade)
+}
+
+model Booking {
+  id           String        @id @default(uuid())
+  clientId     String
+  client       User          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  salonId      String
+  salon        Salon         @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  prestationId String
+  prestation   Prestation    @relation(fields: [prestationId], references: [id], onDelete: Cascade)
+  dateHeure    DateTime
+  statut       BookingStatut @default(EN_ATTENTE)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Review {
+  id          String   @id @default(uuid())
+  note        Int
+  commentaire String?
+  clientId    String
+  client      User     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  salonId     String
+  salon       Salon    @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+}

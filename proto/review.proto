@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package saloonify;
+
+service ReviewService {
+  rpc AddReview (AddReviewRequest) returns (ReviewResponse);
+  rpc GetReviews (GetReviewsRequest) returns (ListReviewsResponse);
+  rpc UpdateSalonRating (UpdateRatingRequest) returns (RatingResponse);
+}
+
+message GetReviewsRequest {
+  string salon_id = 1;
+  int32 limit = 2;
+  int32 offset = 3;
+}
+
+message UpdateRatingRequest {
+  string salon_id = 1;
+}
+
+message AddReviewRequest {
+  string client_id = 1;
+  string salon_id = 2;
+  int32 note = 3;
+  string commentaire = 4;
+}
+
+message ReviewProto {
+  string id = 1;
+  string client_id = 2;
+  string client_nom = 3;
+  string client_prenom = 4;
+  string client_avatar = 5;
+  string salon_id = 6;
+  int32 note = 7;
+  string commentaire = 8;
+  string created_at = 9;
+}
+
+message ReviewResponse {
+  bool success = 1;
+  string error = 2;
+  ReviewProto review = 3;
+}
+
+message ListReviewsResponse {
+  bool success = 1;
+  string error = 2;
+  repeated ReviewProto reviews = 3;
+  double note_moyenne = 4;
+  int32 total = 5;
+}
+
+message RatingResponse {
+  bool success = 1;
+  string error = 2;
+  double note_moyenne = 3;
+  int32 total_avis = 4;
+}

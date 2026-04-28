@@ -1,0 +1,23 @@
+{
+  "name": "@saloonify/prisma",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "generate": "prisma generate",
+    "migrate": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "seed": "ts-node --project tsconfig.seed.json seed.ts",
+    "studio": "prisma studio"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.8.0"
+  },
+  "devDependencies": {
+    "prisma": "^5.8.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3",
+    "@types/node": "^20.10.0",
+    "bcryptjs": "^2.4.3",
+    "@types/bcryptjs": "^2.4.6"
+  }
+}

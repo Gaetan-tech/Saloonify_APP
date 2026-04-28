@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package saloonify;
+
+service UserService {
+  rpc GetUser (UserIdRequest) returns (UserResponse);
+  rpc GetUserByEmail (EmailRequest) returns (UserResponse);
+  rpc CreateUser (CreateUserRequest) returns (UserResponse);
+  rpc VerifyCredentials (CredentialsRequest) returns (UserResponse);
+  rpc UpdateProfile (UpdateProfileRequest) returns (UserResponse);
+  rpc GetDashboardPro (UserIdRequest) returns (DashboardProResponse);
+}
+
+message UserIdRequest {
+  string id = 1;
+}
+
+message EmailRequest {
+  string email = 1;
+}
+
+message CredentialsRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message CreateUserRequest {
+  string email = 1;
+  string password = 2;
+  string role = 3;
+  string nom = 4;
+  string prenom = 5;
+}
+
+message UpdateProfileRequest {
+  string id = 1;
+  string nom = 2;
+  string prenom = 3;
+  string avatar = 4;
+}
+
+message UserProto {
+  string id = 1;
+  string email = 2;
+  string role = 3;
+  string nom = 4;
+  string prenom = 5;
+  string avatar = 6;
+  string created_at = 7;
+}
+
+message UserResponse {
+  bool success = 1;
+  string error = 2;
+  UserProto user = 3;
+}
+
+message DashboardProResponse {
+  bool success = 1;
+  string error = 2;
+  int32 rdv_aujourdhui = 3;
+  int32 rdv_semaine = 4;
+  double note_moyenne = 5;
+  int32 total_clients = 6;
+  int32 total_avis = 7;
+  double revenus_mois = 8;
+}

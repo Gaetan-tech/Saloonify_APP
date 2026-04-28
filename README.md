@@ -1,59 +1,186 @@
-# Saloonify ✂️
+# Saloonify
 
-> Marketplace de réservation chez des coiffeurs indépendants — inspirée de Doctolib × Treatwell
-
-## Démarrage en 3 commandes
-
-```bash
-# 1. Installer les dépendances (workspaces)
-npm install
-
-# 2. Copier les variables d'environnement
-cp packages/api-gateway/.env.example packages/api-gateway/.env
-cp packages/graphql-service/.env.example packages/graphql-service/.env
-cp packages/grpc-service/.env.example packages/grpc-service/.env
-cp packages/client/.env.example packages/client/.env
-
-# 3. Démarrer l'infrastructure + migrer + seeder + lancer les services
-docker compose up -d postgres redis
-npm run db:migrate && npm run db:seed
-npm run dev
-```
-
-**Ou tout via Docker (production-like) :**
-
-```bash
-docker compose up -d
-docker compose run --rm db-migrate
-```
+Plateforme de réservation de salons de coiffure. Les clients trouvent et réservent des créneaux ; les coiffeurs gèrent leur boutique, agenda et avis depuis un espace pro dédié.
 
 ---
 
 ## Architecture
 
+Monorepo **npm workspaces** — 6 packages, communication interne via gRPC et Redis.
+
 ```
-saloonify/
+Saloonify/
 ├── packages/
-│   ├── client/             React 18 + Vite + TailwindCSS + Apollo Client
-│   ├── api-gateway/        Express — auth JWT, rate limit, proxy → GraphQL
-│   ├── graphql-service/    Apollo Server 4 — résolveurs → gRPC
-│   └── grpc-service/       gRPC server — logique métier + Prisma + Redis events
-├── packages/event-bus/     Redis Pub/Sub partagé
-├── proto/                  .proto partagés entre services
-├── prisma/                 Schema PostgreSQL + seeds
-└── docker-compose.yml
+│   ├── api-gateway/       Express — auth JWT, rate-limit, CORS, upload, proxy GraphQL
+│   ├── client/            React 18 + Vite + Tailwind CSS + Apollo Client
+│   └── event-bus/         Lib partagée Redis pub/sub
+├── Services/
+│   ├── service-user/      Microservice gRPC — utilisateurs & profils
+│   ├── service-salon/     Microservice gRPC — salons, prestations & horaires
+│   ├── service-booking/   Microservice gRPC — réservations & créneaux
+│   └── service-review/    Microservice gRPC — avis & notes
+├── prisma/                Schéma Prisma + migrations + seed
+└── proto/                 Contrats gRPC partagés (.proto)
 ```
 
 ### Flux de données
 
 ```
-Client (React)
-  → API Gateway :3000  (JWT, rate-limit, CORS, upload)
-    → GraphQL Service :4000  (Apollo, résolveurs)
-      → gRPC Service :50051  (métier, Prisma, events)
-        → PostgreSQL :5432
-        → Redis :6379  (Event Bus Pub/Sub)
+Client React (5173)
+  └─► API Gateway (3000)  — JWT · rate-limit · CORS · upload
+        ├─► GraphQL /graphql  — Apollo Server 4 → résolveurs gRPC
+        │     ├─► service-user    (50051)
+        │     ├─► service-salon   (50052)
+        │     ├─► service-booking (50053)
+        │     └─► service-review  (50054)
+        └─► REST  /auth  /api/upload  /api/geo
 ```
+
+---
+
+## Prérequis
+
+- Node.js 18+
+- PostgreSQL (port 5434 par défaut)
+- Redis (port 6379)
+
+---
+
+## Installation
+
+```bash
+npm install
+```
+
+---
+
+## Configuration
+
+Chaque package dispose d'un `.env.example`. Copier et renseigner :
+
+```bash
+cp packages/api-gateway/.env.example   packages/api-gateway/.env
+cp packages/client/.env.example        packages/client/.env
+cp prisma/.env.example                 prisma/.env
+```
+
+Variables essentielles :
+
+```env
+# prisma/.env
+DATABASE_URL=postgresql://postgres:password@localhost:5434/saloonify
+
+# packages/api-gateway/.env
+PORT=3000
+JWT_SECRET=<clé secrète>
+JWT_REFRESH_SECRET=<clé secrète>
+REDIS_URL=redis://localhost:6379
+CORS_ORIGINS=http://localhost:5173
+
+# packages/client/.env
+VITE_GRAPHQL_URL=http://localhost:3000/graphql
+```
+
+---
+
+## Base de données
+
+```bash
+npm run db:generate   # Génère le client Prisma
+npm run db:migrate    # Applique les migrations
+npm run db:seed       # Données de démonstration
+npm run db:studio     # Ouvre Prisma Studio
+```
+
+---
+
+## Démarrage
+
+```bash
+npm run dev
+```
+
+Lance tous les services en parallèle :
+
+| Service | Adresse |
+|---|---|
+| Client | http://localhost:5173 |
+| API Gateway | http://localhost:3000 |
+| GraphQL Playground | http://localhost:3000/graphql |
+| service-user | gRPC `localhost:50051` |
+| service-salon | gRPC `localhost:50052` |
+| service-booking | gRPC `localhost:50053` |
+| service-review | gRPC `localhost:50054` |
+
+---
+
+## API REST
+
+| Méthode | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/auth/register` | — | Inscription |
+| `POST` | `/auth/login` | — | Connexion |
+| `POST` | `/auth/refresh` | cookie | Rafraîchir le token |
+| `POST` | `/auth/logout` | — | Déconnexion |
+| `POST` | `/api/upload` | Bearer | Upload photos (max 5 Mo, images uniquement) |
+| `GET` | `/api/geo/search` | — | Géocodage (Nominatim) |
+
+---
+
+## GraphQL
+
+### Queries
+
+```graphql
+me
+salons(filter: { lat, lng, rayon, categorie, prixMax, noteMin, limit, offset })
+salon(id: ID!)
+salonsByCoiffeur
+mySalon
+availableSlots(salonId, prestationId, date)
+myBookings
+proBookings(date)
+reviews(salonId, limit, offset)
+dashboardPro
+```
+
+### Mutations
+
+```graphql
+updateProfile(nom, prenom, avatar)
+createSalon(input)   /   updateSalon(id, input)
+createPrestation(salonId, input)   /   updatePrestation   /   deletePrestation
+setHoraires(salonId, horaires)
+createBooking(salonId, prestationId, dateHeure)
+cancelBooking(id)   /   confirmBooking(id)   /   terminateBooking(id)
+addReview(salonId, note, commentaire)
+```
+
+---
+
+## Rôles & pages
+
+### CLIENT
+
+| Route | Page |
+|---|---|
+| `/` | Accueil — salons populaires, géolocalisation |
+| `/explore` | Carte Leaflet + filtres (note, prix, catégorie, rayon) |
+| `/salon/:id` | Galerie, prestations, avis, horaires |
+| `/booking/:salonId` | Tunnel de réservation (prestation → créneau → confirmation) |
+| `/my-bookings` | Mes rendez-vous (à venir / passés / annulés) |
+| `/profile` | Mon profil |
+
+### COIFFEUR (espace pro)
+
+| Route | Page |
+|---|---|
+| `/pro/dashboard` | Stats du jour, RDV aujourd'hui |
+| `/pro/boutique` | Créer / modifier sa boutique + horaires |
+| `/pro/prestations` | CRUD prestations |
+| `/pro/agenda` | Vue semaine avec créneaux |
+| `/pro/reservations` | Confirmer / annuler / terminer les RDV |
+| `/pro/avis` | Avis clients + distribution des notes |
 
 ---
 
@@ -63,69 +190,7 @@ Client (React)
 |---|---|---|
 | Coiffeur | `marie.dupont@saloonify.fr` | `password123` |
 | Coiffeur | `ahmed.benali@saloonify.fr` | `password123` |
-| Coiffeur | `sofia.martin@saloonify.fr` | `password123` |
 | Client | `client1@example.com` | `password123` |
-
----
-
-## Pages disponibles
-
-### Client
-| Route | Description |
-|---|---|
-| `/` | Home — hero, salons populaires, comment ça marche |
-| `/explore` | Carte Leaflet + liste filtrables (note, prix, catégorie, rayon) |
-| `/salon/:id` | Page salon — galerie, prestations, avis, horaires, carte |
-| `/booking/:salonId` | Tunnel de réservation (prestation → créneau → confirmation) |
-| `/my-bookings` | Mes rendez-vous (à venir / passés / annulés) |
-| `/profile` | Mon profil |
-
-### Espace Pro (COIFFEUR)
-| Route | Description |
-|---|---|
-| `/pro/dashboard` | Stats du jour, RDV aujourd'hui, navigation rapide |
-| `/pro/boutique` | Créer/modifier boutique + horaires |
-| `/pro/prestations` | CRUD prestations |
-| `/pro/agenda` | Vue semaine avec RDV |
-| `/pro/reservations` | Confirmer / annuler / terminer les RDV |
-| `/pro/avis` | Avis clients + distribution des notes |
-
----
-
-## API
-
-### Auth (API Gateway)
-```
-POST /auth/register    Corps: { email, password, role, nom, prenom }
-POST /auth/login       Corps: { email, password }
-POST /auth/refresh     Cookie: refresh_token
-POST /auth/logout
-```
-
-### GraphQL `/graphql`
-Explorateur disponible sur `http://localhost:4000` en développement.
-
-**Queries principales :**
-```graphql
-salons(filter: { lat, lng, rayon, categorie, prixMax, noteMin })
-salon(id: ID!)
-availableSlots(salonId, prestationId, date)
-myBookings
-proBookings(date)
-reviews(salonId)
-dashboardPro
-```
-
-**Mutations principales :**
-```graphql
-register(input) / login(email, password)
-createSalon(input) / updateSalon(id, input)
-createPrestation(salonId, input) / updatePrestation / deletePrestation
-setHoraires(salonId, horaires)
-createBooking(salonId, prestationId, dateHeure)
-cancelBooking(id) / confirmBooking(id)
-addReview(salonId, note, commentaire)
-```
 
 ---
 
@@ -133,58 +198,26 @@ addReview(salonId, note, commentaire)
 
 | Couche | Technologie |
 |---|---|
-| Frontend | React 18, Vite, TailwindCSS, Apollo Client, React Router v6 |
-| Carte | Leaflet + React-Leaflet + OpenStreetMap |
-| API Gateway | Express 4, JWT, multer, http-proxy-middleware, winston |
+| Frontend | React 18, Vite, Tailwind CSS, Apollo Client, React Router v6 |
+| Carte | Leaflet + React-Leaflet + OpenStreetMap / Nominatim |
+| API Gateway | Express 4, JWT, multer, winston, express-rate-limit |
 | GraphQL | Apollo Server 4 |
-| gRPC | @grpc/grpc-js + proto-loader |
-| Event Bus | Redis Pub/Sub (ioredis) |
+| Transport inter-services | gRPC (`@grpc/grpc-js`) |
+| Event Bus | Redis pub/sub |
 | ORM | Prisma 5 |
-| Base de données | PostgreSQL 16 |
-| Cache | Redis 7 |
-| Auth | JWT (access 15min + refresh 7j httpOnly cookie) |
+| Base de données | PostgreSQL |
+| Auth | JWT access (15 min) + refresh httpOnly cookie (7 j) |
 | Monorepo | npm workspaces |
 
 ---
 
-## Variables d'environnement clés
-
-```env
-# api-gateway
-JWT_SECRET=...
-JWT_REFRESH_SECRET=...
-GRAPHQL_URL=http://localhost:4000
-GRPC_HOST=localhost:50051
-
-# grpc-service
-DATABASE_URL=postgresql://...
-REDIS_URL=redis://localhost:6379
-
-# client
-VITE_GRAPHQL_URL=http://localhost:3000/graphql
-```
-
----
-
-## Scripts npm
+## Scripts npm racine
 
 ```bash
 npm run dev           # Lance tous les services en parallèle
-npm run db:generate   # Génère le client Prisma
-npm run db:migrate    # Applique les migrations
-npm run db:seed       # Seed les données de test
-npm run db:studio     # Lance Prisma Studio
 npm run build         # Build tous les packages
+npm run db:generate   # Client Prisma
+npm run db:migrate    # Migrations
+npm run db:seed       # Seed
+npm run db:studio     # Prisma Studio
 ```
-
----
-
-## Event Bus — événements Redis
-
-| Événement | Publisher | Subscriber | Action |
-|---|---|---|---|
-| `booking.created` | BookingService | NotifService | Email confirmation client + coiffeur |
-| `booking.confirmed` | BookingService | NotifService | Email confirmation |
-| `booking.cancelled` | BookingService | BookingService + Notif | Libère créneau + email |
-| `review.added` | ReviewService | SalonService | Recalcule note moyenne |
-| `salon.updated` | SalonService | CacheService | Invalide cache |

@@ -1,0 +1,156 @@
+syntax = "proto3";
+
+package saloonify;
+
+service SalonService {
+  rpc GetSalon (SalonRequest) returns (SalonResponse);
+  rpc ListSalons (ListSalonsRequest) returns (ListSalonsResponse);
+  rpc CreateSalon (CreateSalonRequest) returns (SalonResponse);
+  rpc UpdateSalon (UpdateSalonRequest) returns (SalonResponse);
+  rpc DeleteSalon (SalonRequest) returns (DeleteResponse);
+  rpc GetSalonsByCoiffeur (CoiffeurRequest) returns (ListSalonsResponse);
+  rpc CreatePrestation (CreatePrestationRequest) returns (PrestationResponse);
+  rpc UpdatePrestation (UpdatePrestationRequest) returns (PrestationResponse);
+  rpc DeletePrestation (PrestationRequest) returns (DeleteResponse);
+  rpc SetHoraires (SetHorairesRequest) returns (SetHorairesResponse);
+}
+
+message SalonRequest {
+  string id = 1;
+}
+
+message CoiffeurRequest {
+  string coiffeur_id = 1;
+}
+
+message PrestationRequest {
+  string id = 1;
+}
+
+message ListSalonsRequest {
+  double lat = 1;
+  double lng = 2;
+  double rayon = 3;
+  string filtre_categorie = 4;
+  double prix_max = 5;
+  double note_min = 6;
+  int32 limit = 7;
+  int32 offset = 8;
+}
+
+message SalonProto {
+  string id = 1;
+  string nom = 2;
+  string description = 3;
+  string adresse = 4;
+  double lat = 5;
+  double lng = 6;
+  repeated string photos = 7;
+  double note = 8;
+  int32 total_avis = 9;
+  string coiffeur_id = 10;
+  string coiffeur_nom = 11;
+  string coiffeur_prenom = 12;
+  repeated PrestationProto prestations = 13;
+  repeated HoraireProto horaires = 14;
+  double distance = 15;
+}
+
+message PrestationProto {
+  string id = 1;
+  string nom = 2;
+  string description = 3;
+  int32 duree = 4;
+  double prix = 5;
+  string categorie = 6;
+  string salon_id = 7;
+}
+
+message HoraireProto {
+  string id = 1;
+  string jour = 2;
+  bool ouvert = 3;
+  string heure_debut = 4;
+  string heure_fin = 5;
+  string salon_id = 6;
+}
+
+message SalonResponse {
+  bool success = 1;
+  string error = 2;
+  SalonProto salon = 3;
+}
+
+message ListSalonsResponse {
+  bool success = 1;
+  string error = 2;
+  repeated SalonProto salons = 3;
+  int32 total = 4;
+}
+
+message PrestationResponse {
+  bool success = 1;
+  string error = 2;
+  PrestationProto prestation = 3;
+}
+
+message DeleteResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message CreateSalonRequest {
+  string nom = 1;
+  string description = 2;
+  string adresse = 3;
+  double lat = 4;
+  double lng = 5;
+  repeated string photos = 6;
+  string coiffeur_id = 7;
+}
+
+message UpdateSalonRequest {
+  string id = 1;
+  string nom = 2;
+  string description = 3;
+  string adresse = 4;
+  double lat = 5;
+  double lng = 6;
+  repeated string photos = 7;
+}
+
+message CreatePrestationRequest {
+  string nom = 1;
+  string description = 2;
+  int32 duree = 3;
+  double prix = 4;
+  string categorie = 5;
+  string salon_id = 6;
+}
+
+message UpdatePrestationRequest {
+  string id = 1;
+  string nom = 2;
+  string description = 3;
+  int32 duree = 4;
+  double prix = 5;
+  string categorie = 6;
+}
+
+message SetHorairesRequest {
+  string salon_id = 1;
+  repeated HoraireInput horaires = 2;
+}
+
+message HoraireInput {
+  string jour = 1;
+  bool ouvert = 2;
+  string heure_debut = 3;
+  string heure_fin = 4;
+}
+
+message SetHorairesResponse {
+  bool success = 1;
+  string error = 2;
+  repeated HoraireProto horaires = 3;
+}
