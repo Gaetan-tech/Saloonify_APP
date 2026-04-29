@@ -82,6 +82,78 @@ Plateforme de réservation de salons de coiffure. Les clients trouvent et réser
 
 ## Architecture
 
+
+  ┌─────────────────────────────┬─────────────────────────────────────────────────────────────────┐
+  │            Choix            │                             Raison                              │
+  ├─────────────────────────────┼─────────────────────────────────────────────────────────────────┤
+  │ gRPC api-gateway → services │ Contrat strict via proto, performant, pas d'URL à gérer         │
+  ├─────────────────────────────┼─────────────────────────────────────────────────────────────────┤
+  │ REST pour l'auth            │ Nécessite des cookies httpOnly (impossible en GraphQL standard) │
+  ├─────────────────────────────┼─────────────────────────────────────────────────────────────────┤
+  │ GraphQL pour les données    │ Flexibilité des queries, évite le sur-fetching côté client      │
+  ├─────────────────────────────┼─────────────────────────────────────────────────────────────────┤
+  │ Un seul serveur par service │ Simplicité — pas de port HTTP + gRPC à gérer par service        │
+  └─────────────────────────────┴─────────────────────────────────────────────────────────────────┘
+
+                                                                                                             
+  
+                                                                                                             
+● ┌──────────────────────────────────────────────────────────────────┐                                       
+  │                    CLIENT  React · :5174                         │                                       
+  │                                                                  │                                       
+  │   fetch('/auth/*')                  Apollo Client                │                                         │   fetch('/api/upload')              VITE_GRAPHQL_URL             │                                       
+  │   fetch('/api/geo/search')          POST /graphql                │                                         └────────────┬────────────────────────────┬────────────────────────┘                                       
+               │ HTTP REST                  │ HTTP GraphQL
+               ▼                           ▼
+  ┌──────────────────────────────────────────────────────────────────┐
+  │                 API GATEWAY  Express · :3000                     │
+  │                                                                  │
+  │  /auth/*       AuthController   (JWT access + refresh cookie)    │
+  │  /api/upload   multer            (stockage fichiers)             │
+  │  /api/geo/*    axios → Nominatim (géocodage externe)             │
+  │  /graphql      Apollo Server 4   (queries + mutations)           │
+  │                                                                  │
+  │  grpcClients.ts ── charge les 4 proto ── crée 4 clients gRPC     │
+  └───┬──────────────┬──────────────┬──────────────┬─────────────────┘
+      │ gRPC         │ gRPC         │ gRPC         │ gRPC
+      │ user.proto   │ salon.proto  │booking.proto │review.proto
+      ▼              ▼              ▼              ▼
+  ┌────────┐   ┌─────────┐   ┌──────────┐   ┌──────────┐
+  │service │   │ service │   │ service  │   │ service  │
+  │ -user  │   │ -salon  │   │ -booking │   │ -review  │
+  │ :50051 │   │ :50052  │   │ :50053   │   │ :50054   │
+  └───┬────┘   └────┬────┘   └────┬─────┘   └────┬─────┘
+      │              │             │  publish      │
+      │              │             ▼               │
+      │              │       ┌───────────┐         │
+      │              │       │   Redis   │ ◄───────┘
+      │              └──────►│  pub/sub  │  publish
+      │                      │  :6380    │
+      │                      └─────┬─────┘
+      │                            │ subscribe
+      │                      booking.created
+      │                      booking.confirmed
+      │                      booking.cancelled
+      │                      booking.terminated
+      │                      review.added
+      │                      salon.updated
+      │                            │
+      │              ┌─────────────┘
+      │              ▼
+      │         handlers enregistrés
+      │         (ex: review écoute booking.terminated
+      │              pour mettre à jour note_moyenne)
+      │
+      └──────────────────┬───────────────────────────┘
+                         │ Prisma ORM (shared schema)
+                         ▼
+                  ┌─────────────┐
+                  │  PostgreSQL │
+                  │    :5434    │
+                  └─────────────┘
+
+
+
 Monorepo **npm workspaces** — 6 packages, communication interne via gRPC et Redis.
 
 ```
